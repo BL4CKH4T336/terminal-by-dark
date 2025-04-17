@@ -1,5 +1,6 @@
+import os
 import subprocess
-from flask import Flask, Response
+from flask import Flask, request
 from flask_socketio import SocketIO
 import eventlet
 eventlet.monkey_patch()
@@ -8,67 +9,35 @@ html_content = """
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Termux Web</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Terminal</title>
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: black;
-      color: #00ff00;
-      font-family: monospace;
-      font-size: 14px;
-    }
-    #terminal {
-      padding: 10px;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      height: 100vh;
-      overflow-y: auto;
-    }
-    input {
-      background: black;
-      border: none;
-      outline: none;
-      color: #00ff00;
-      font-family: monospace;
-      font-size: 14px;
-      width: 100%%;
-    }
+    body { background: black; color: white; font-family: monospace; }
+    #terminal { width: 100%%; height: 90vh; overflow-y: scroll; white-space: pre-wrap; padding: 10px; }
+    input { width: 100%%; padding: 10px; font-size: 16px; background: #222; color: white; border: none; }
   </style>
 </head>
 <body>
-  <div id="terminal" onclick="focusInput()"></div>
-  <input id="input" autofocus autocomplete="off" />
+  <div id="terminal"></div>
+  <input id="commandInput" placeholder="Type command and press Enter" autofocus />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    const terminal = document.getElementById('terminal');
-    const input = document.getElementById('input');
     const socket = io();
+    const terminal = document.getElementById('terminal');
+    const input = document.getElementById('commandInput');
 
-    function focusInput() {
-      input.focus();
-    }
-
-    function appendOutput(text) {
-      terminal.innerHTML += text + "\\n";
-      terminal.scrollTop = terminal.scrollHeight;
-    }
-
-    input.addEventListener('keydown', function(e) {
+    input.addEventListener('keypress', function(e) {
       if (e.key === 'Enter') {
         const cmd = input.value;
-        appendOutput("> " + cmd);
+        terminal.innerHTML += '\\n> ' + cmd + '\\n';
         socket.emit('command', cmd);
         input.value = '';
       }
     });
 
     socket.on('output', function(data) {
-      appendOutput(data);
+      terminal.innerHTML += data + '\\n';
+      terminal.scrollTop = terminal.scrollHeight;
     });
-
-    window.onload = focusInput;
   </script>
 </body>
 </html>
@@ -79,7 +48,7 @@ socketio = SocketIO(app)
 
 @app.route('/')
 def index():
-    return Response(html_content, mimetype='text/html')
+    return html_content
 
 @socketio.on('command')
 def handle_command(cmd):
@@ -90,5 +59,5 @@ def handle_command(cmd):
         socketio.emit('output', str(e))
 
 if __name__ == '__main__':
-    print("Web Terminal running at http://localhost:5000")
+    print("Running Web Terminal at http://localhost:5000")
     socketio.run(app, host='0.0.0.0', port=5000)
